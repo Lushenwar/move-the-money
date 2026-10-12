@@ -14,31 +14,9 @@
 ╚══════════════════════════════════════════════════════════╝
 ```
 
-Phase: Phase 5 (review checkpoint 3, README, build log, demo prep)
+Phase: Phase 5 (README, build log, demo prep). Build complete; all review checkpoints done.
 Time budget: 4 hours hard cap (start: 13:28 / stop by: 17:28, 2026-10-12)
-Tests: 54 passing
-**Claude updates this section (box, phase line, commit log) after every commit.**
-
-### Done so far
-| Commit | Step | What |
-| --- | --- | --- |
-| `d745abd` | setup | requirements, gitignore, CLAUDE.md, reviewer agent |
-| `7d8a950` | setup | allow more reviewer runs, start clock, Claude commits |
-| `87b748c` | 1A | schema.sql, db.py (pool), app.py (schema applied at import, no async lifespan) |
-| `8bd1958` | 1A fix | close connection pool at exit |
-| `aa1249f` | 1B | POST/GET accounts, strict validation, 0..BIGINT max, `{"error": ...}` bodies, httpx |
-| `d2d7b70` | 2A | do_transfer: FOR UPDATE ORDER BY id, conditional debit, one transaction; rule-2 rollback test |
-| `8c08029` | 2B/2C | 50-thread concurrency test; smoke check: no-FOR-UPDATE passed (proves nothing), read-check-write failed 18-19/10 |
-| — | 2D | review checkpoint 1: cold-pool claim measured over 80 runs, half right, no change |
-| `29d4756` | 3A | idempotency: lock → claim key (ON CONFLICT DO NOTHING) → debit → credit; 200 replay / 409 conflict |
-| `4ece30b` | 3B | idempotency tests incl. drained replay, 20 concurrent duplicates, same key on different accounts |
-| `8570434` | 3C | review checkpoint 2: no CRITICAL/MAJOR; added waiting-duplicate-after-rollback test |
-| `a614082` | 4A | GET /accounts/{id}/transfers, 404 for unknown, ORDER BY id DESC (created_at is txn start; test proves it) |
-| `bb32765` | 4B | 19-case validation table via HTTP, each asserts balances unchanged + no row; strict-mode smoke check |
-| `19f6070` | 4B+ | transfers.created_at DEFAULT clock_timestamp() (write time, not txn start) |
-| `074ebfa` | 4C | bidirectional test; smoke: no ORDER BY passed (PK index order), sender-then-receiver deadlocked 3/3 |
-| `906594e` | 4D | reset_db.py: --yes guard, prints db/host (no password), TRUNCATE ... RESTART IDENTITY |
-| (this) | 5 | review checkpoint 3: no CRITICAL/MAJOR; fixed test leaving a moneyless transfer row + stale comment |
+Tests: 54 passing. History: see `git log`.
 
 ## WHAT THIS FILE IS
 
@@ -113,10 +91,10 @@ The live change means **every line must be something I understand and can modify
 1. Client sends `POST /transfers` with an idempotency key, sender, receiver, and amount in cents.
 2. Pydantic validates the input strictly (positive integer cents, different accounts).
 3. One DB transaction:
-   * locks both accounts in id order
-   * conditionally debits the sender
+   * locks both accounts in id order (`SELECT ... FOR UPDATE ORDER BY id`)
+   * claims the idempotency key: `INSERT` the transfer row `ON CONFLICT (idempotency_key) DO NOTHING`. If the key exists, return the original (200) or 409, touching no balances. Must come after the lock (FK share locks can deadlock) and before the debit (`DO NOTHING` doesn't raise, so a conflict after the debit would commit a second payment)
+   * conditionally debits the sender (`WHERE balance_cents >= amount`, check rowcount)
    * credits the receiver
-   * inserts the transfer row (UNIQUE idempotency key)
 4. Commit. Either all of it happened, or none of it did.
 
 ---
@@ -259,7 +237,7 @@ Work **one phase step at a time**. Stop after each step so I can review, test, a
   * `SELECT ... FOR UPDATE` on both accounts `ORDER BY id`
   * conditional debit `WHERE balance_cents >= amount`, checking `rowcount`
   * credit
-  * insert the transfer row
+  * insert the transfer row (moved to right after the lock in 3A: claiming the key last made a replay of a drained transfer return 422)
   * Commit: `transfer endpoint`
 * **2B:** Concurrency test: account A = 10000, 50 threads × 1000 to B, released by `threading.Barrier`, each thread on its own pooled connection. Assert:
   * exactly 10 succeed
@@ -379,8 +357,7 @@ Do not use multi-agent debate or "council" skills on this project. They cost far
 
 ## COMMIT & HISTORY RULES
 
-* **Claude commits and pushes** once a step works and its tests pass, then stops so I can review. No `Co-Authored-By` or other AI attribution lines in commit messages.
-* **After every commit, Claude updates CURRENT STATUS** (progress box, phase line, test count, "Done so far" table) and commits that with the next change.
+* **Claude commits and pushes** once a step works and its tests pass, then stops so I can review. Commit messages describe the change only.
 * One logical change per commit, with honest messages (including fix commits like `fix: transfer used read-check-write, switch to conditional update`).
 * Never stage a fake mistake for the history. If something worked first time, it worked first time.
 * Never commit `.venv`, secrets, or `NOTES.md` (my private prep notes).
