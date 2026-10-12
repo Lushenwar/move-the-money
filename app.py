@@ -68,3 +68,8 @@ def create_transfer(body: TransferIn, response: Response):
     if not created:
         response.status_code = 200  # replay of an already-applied key
     return transfer
+
+
+@app.get("/accounts/{account_id}/transfers")
+def get_history(account_id: AccountId):
+    return service.get_history(account_id)  # ponytail: unbounded list, paginate if histories grow

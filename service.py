@@ -91,3 +91,20 @@ def do_transfer(idempotency_key: str, from_id: int, to_id: int, amount_cents: in
 
 def _transfer_dict(row) -> dict:
     return dict(zip(TRANSFER_COLUMNS.split(", "), row))
+
+
+def get_history(account_id: int) -> list[dict]:
+    with pool.connection() as conn:
+        if conn.execute("SELECT 1 FROM accounts WHERE id = %s", (account_id,)).fetchone() is None:
+            raise AccountNotFound(account_id)
+        # Newest first by id, not created_at: created_at is now(), the time the transaction
+        # *started*, so a transfer that waited on the account lock can carry an older timestamp
+        # than one applied before it. ids are drawn inside the INSERT, after FOR UPDATE, so for
+        # one account they follow the order its money actually moved.
+        rows = conn.execute(
+            f"SELECT {TRANSFER_COLUMNS} FROM transfers"
+            " WHERE from_account_id = %s OR to_account_id = %s"
+            " ORDER BY id DESC",
+            (account_id, account_id),
+        ).fetchall()
+    return [_transfer_dict(r) for r in rows]

@@ -1,3 +1,4 @@
+import time
 from uuid import uuid4
 
 import psycopg
@@ -5,6 +6,7 @@ import pytest
 
 import service
 from conftest import balance, new_account
+from db import pool
 
 BIGINT_MAX = 2**63 - 1
 
@@ -72,3 +74,59 @@ def test_failed_credit_rolls_back_debit():
 
     assert balance(a) == 100
     assert balance(b) == BIGINT_MAX
+
+
+def test_history_sent_and_received_newest_first(client):
+    a, b, c, other = new_account(1000), new_account(1000), new_account(0), new_account(1000)
+    sent = client.post("/transfers", json=transfer_body(a, b, 100)).json()
+    received = client.post("/transfers", json=transfer_body(b, a, 30)).json()
+    client.post("/transfers", json=transfer_body(b, c, 50))  # doesn't involve a
+    client.post("/transfers", json=transfer_body(other, c, 50))  # doesn't involve a
+
+    r = client.get(f"/accounts/{a}/transfers")
+
+    assert r.status_code == 200
+    assert [t["id"] for t in r.json()] == [received["id"], sent["id"]]
+
+
+def test_history_excludes_failed_transfers_and_replays(client):
+    a, b = new_account(100), new_account(0)
+    body = transfer_body(a, b, 100)
+    client.post("/transfers", json=body)
+    client.post("/transfers", json=body)  # replay
+    client.post("/transfers", json=transfer_body(a, b, 1))  # insufficient funds
+
+    history = client.get(f"/accounts/{a}/transfers").json()
+
+    assert [t["idempotency_key"] for t in history] == [body["idempotency_key"]]
+
+
+def test_history_new_account_is_empty(client):
+    r = client.get(f"/accounts/{new_account(0)}/transfers")
+    assert r.status_code == 200
+    assert r.json() == []
+
+
+def test_history_unknown_account_404(client):
+    r = client.get(f"/accounts/{BIGINT_MAX}/transfers")
+    assert r.status_code == 404
+    assert r.json() == {"error": "account_not_found"}
+
+
+def test_history_orders_by_when_applied_not_when_transaction_started():
+    # created_at is now(), the transaction START time. A transaction that starts first but
+    # writes last (e.g. it waited on the account lock) gets the older created_at.
+    # History must still list it first, because it happened last.
+    a, b = new_account(1000), new_account(0)
+    with pool.connection() as slow:
+        slow.execute("SELECT 1")  # slow's transaction starts now, fixing its now()
+        time.sleep(0.05)
+        fast, _ = service.do_transfer(str(uuid4()), a, b, 100)  # starts later, commits first
+        slow_id, slow_created = slow.execute(
+            "INSERT INTO transfers (idempotency_key, from_account_id, to_account_id, amount_cents)"
+            " VALUES (%s, %s, %s, 1) RETURNING id, created_at",  # row only: this test is about order
+            (str(uuid4()), a, b),
+        ).fetchone()
+
+    assert slow_created < fast["created_at"]  # the timestamps disagree with what happened...
+    assert [t["id"] for t in service.get_history(a)] == [slow_id, fast["id"]]  # ...history doesn't
