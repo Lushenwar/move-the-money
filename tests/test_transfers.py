@@ -143,9 +143,9 @@ def test_history_unknown_account_404(client):
 
 
 def test_history_orders_by_when_applied_not_when_transaction_started():
-    # created_at is now(), the transaction START time. A transaction that starts first but
-    # writes last (e.g. it waited on the account lock) gets the older created_at.
-    # History must still list it first, because it happened last.
+    # A transaction that starts first but writes last (e.g. it waited on the account lock)
+    # happened last, so history must list it first, and created_at (clock_timestamp(), the
+    # write time, not now(), the transaction start time) must agree.
     a, b = new_account(1000), new_account(0)
     with pool.connection() as slow:
         slow.execute("SELECT 1")  # slow's transaction starts now, fixing its now()
@@ -157,5 +157,5 @@ def test_history_orders_by_when_applied_not_when_transaction_started():
             (str(uuid4()), a, b),
         ).fetchone()
 
-    assert slow_created < fast["created_at"]  # the timestamps disagree with what happened...
-    assert [t["id"] for t in service.get_history(a)] == [slow_id, fast["id"]]  # ...history doesn't
+    assert [t["id"] for t in service.get_history(a)] == [slow_id, fast["id"]]
+    assert slow_created > fast["created_at"]  # with now() this would be < (transaction start)

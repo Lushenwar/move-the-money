@@ -14,7 +14,7 @@
 ╚══════════════════════════════════════════════════════════╝
 ```
 
-Phase: Phase 4 in progress (optional clock_timestamp, then 4C bidirectional test)
+Phase: Phase 4 in progress (4C bidirectional test next)
 Time budget: 4 hours hard cap (start: 13:28 / stop by: 17:28, 2026-10-12)
 Tests: 53 passing
 **Claude updates this section (box, phase line, commit log) after every commit.**
@@ -34,7 +34,8 @@ Tests: 53 passing
 | `4ece30b` | 3B | idempotency tests incl. drained replay, 20 concurrent duplicates, same key on different accounts |
 | `8570434` | 3C | review checkpoint 2: no CRITICAL/MAJOR; added waiting-duplicate-after-rollback test |
 | `a614082` | 4A | GET /accounts/{id}/transfers, 404 for unknown, ORDER BY id DESC (created_at is txn start; test proves it) |
-| (this) | 4B | 19-case validation table via HTTP, each asserts balances unchanged + no row; strict-mode smoke check |
+| `bb32765` | 4B | 19-case validation table via HTTP, each asserts balances unchanged + no row; strict-mode smoke check |
+| (this) | 4B+ | transfers.created_at DEFAULT clock_timestamp() (write time, not txn start) |
 
 ## WHAT THIS FILE IS
 
@@ -179,7 +180,7 @@ CREATE TABLE IF NOT EXISTS transfers (
     from_account_id  BIGINT NOT NULL REFERENCES accounts(id),
     to_account_id    BIGINT NOT NULL REFERENCES accounts(id),
     amount_cents     BIGINT NOT NULL CHECK (amount_cents > 0),
-    created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),  -- write time, not txn start
     CHECK (from_account_id <> to_account_id)
 );
 ```
@@ -191,7 +192,7 @@ CREATE TABLE IF NOT EXISTS transfers (
 | POST | `/accounts` | `{"initial_balance_cents": 10000}` | 201 `{"id", "balance_cents"}` |
 | GET | `/accounts/{id}` | — | 200 `{"id", "balance_cents"}` |
 | POST | `/transfers` | `{"idempotency_key", "from_account_id", "to_account_id", "amount_cents"}` | 201 transfer object (200 with the original transfer if the key is replayed with the same payload) |
-| GET | `/accounts/{id}/transfers` | — | 200 list of transfers (sent and received, newest first) |
+| GET | `/accounts/{id}/transfers` | — | 200 list of transfers (sent and received, newest first by id; 404 if unknown) |
 
 ### Error contract
 
