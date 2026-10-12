@@ -14,9 +14,9 @@
 ╚══════════════════════════════════════════════════════════╝
 ```
 
-Phase: Phase 4 in progress (4C bidirectional test next)
+Phase: Phase 4 in progress (4D reset_db.py next)
 Time budget: 4 hours hard cap (start: 13:28 / stop by: 17:28, 2026-10-12)
-Tests: 53 passing
+Tests: 54 passing
 **Claude updates this section (box, phase line, commit log) after every commit.**
 
 ### Done so far
@@ -35,7 +35,8 @@ Tests: 53 passing
 | `8570434` | 3C | review checkpoint 2: no CRITICAL/MAJOR; added waiting-duplicate-after-rollback test |
 | `a614082` | 4A | GET /accounts/{id}/transfers, 404 for unknown, ORDER BY id DESC (created_at is txn start; test proves it) |
 | `bb32765` | 4B | 19-case validation table via HTTP, each asserts balances unchanged + no row; strict-mode smoke check |
-| (this) | 4B+ | transfers.created_at DEFAULT clock_timestamp() (write time, not txn start) |
+| `19f6070` | 4B+ | transfers.created_at DEFAULT clock_timestamp() (write time, not txn start) |
+| (this) | 4C | bidirectional test; smoke: no ORDER BY passed (PK index order), sender-then-receiver deadlocked 3/3 |
 
 ## WHAT THIS FILE IS
 

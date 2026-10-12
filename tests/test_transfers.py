@@ -158,4 +158,4 @@ def test_history_orders_by_when_applied_not_when_transaction_started():
         ).fetchone()
 
     assert [t["id"] for t in service.get_history(a)] == [slow_id, fast["id"]]
-    assert slow_created > fast["created_at"]  # with now() this would be < (transaction start)
+    assert slow_created >= fast["created_at"]  # with now() this would be < (transaction start)

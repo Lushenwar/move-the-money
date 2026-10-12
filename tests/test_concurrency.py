@@ -32,3 +32,30 @@ def test_concurrent_transfers_never_overdraw():
     assert results.count("insufficient") == 40
     assert balance(a) == 0
     assert balance(a) + balance(b) == 10000
+
+
+def test_opposite_direction_transfers_no_deadlock_and_conserve_money():
+    # 20 threads send A->B while 20 send B->A, all at once. With locks taken in id order
+    # this can't deadlock; a deadlock (psycopg.errors.DeadlockDetected) fails the test.
+    # 20 x 700 = 14000 > 10000, so some transfers may hit insufficient funds.
+    a, b = new_account(10000), new_account(10000)
+    threads, amount = 40, 700
+    barrier = threading.Barrier(threads, timeout=10)
+
+    def attempt(i):
+        src, dst = (a, b) if i % 2 == 0 else (b, a)
+        barrier.wait()
+        try:
+            service.do_transfer(str(uuid4()), src, dst, amount)
+            return (src, "ok")
+        except service.InsufficientFunds:
+            return (src, "insufficient")
+
+    with ThreadPoolExecutor(max_workers=threads) as pool:
+        results = list(pool.map(attempt, range(threads)))
+
+    a_sent = results.count((a, "ok"))
+    b_sent = results.count((b, "ok"))
+    assert balance(a) + balance(b) == 20000
+    assert balance(a) == 10000 - a_sent * amount + b_sent * amount
+    assert balance(b) == 10000 - b_sent * amount + a_sent * amount
