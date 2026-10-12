@@ -4,17 +4,17 @@
 
 ```
 ╔══════════════════════════════════════════════════════════╗
-║  BUILD PROGRESS                               3/5 DONE   ║
-║  ██████████████░░░░░░░░░░  60%                           ║
+║  BUILD PROGRESS                               4/5 DONE   ║
+║  ███████████████████░░░░░  80%                           ║
 ║  Phase 1: Skeleton, Schema & Accounts       [x]          ║
 ║  Phase 2: Transfers & Concurrency Proof     [x]          ║
 ║  Phase 3: Idempotency                       [x]          ║
-║  Phase 4: History, Validation & Hardening   [ ]          ║
+║  Phase 4: History, Validation & Hardening   [x]          ║
 ║  Phase 5: README, Build Log & Demo Prep     [ ]          ║
 ╚══════════════════════════════════════════════════════════╝
 ```
 
-Phase: Phase 4 in progress (4D reset_db.py next)
+Phase: Phase 5 (review checkpoint 3, README, build log, demo prep)
 Time budget: 4 hours hard cap (start: 13:28 / stop by: 17:28, 2026-10-12)
 Tests: 54 passing
 **Claude updates this section (box, phase line, commit log) after every commit.**
@@ -36,7 +36,8 @@ Tests: 54 passing
 | `a614082` | 4A | GET /accounts/{id}/transfers, 404 for unknown, ORDER BY id DESC (created_at is txn start; test proves it) |
 | `bb32765` | 4B | 19-case validation table via HTTP, each asserts balances unchanged + no row; strict-mode smoke check |
 | `19f6070` | 4B+ | transfers.created_at DEFAULT clock_timestamp() (write time, not txn start) |
-| (this) | 4C | bidirectional test; smoke: no ORDER BY passed (PK index order), sender-then-receiver deadlocked 3/3 |
+| `074ebfa` | 4C | bidirectional test; smoke: no ORDER BY passed (PK index order), sender-then-receiver deadlocked 3/3 |
+| (this) | 4D | reset_db.py: --yes guard, prints db/host (no password), TRUNCATE ... RESTART IDENTITY |
 
 ## WHAT THIS FILE IS
 
@@ -402,6 +403,6 @@ pip install -r requirements.txt       # install deps
 uvicorn app:app --reload              # run server → http://localhost:8000/docs
 pytest -v                             # run all tests
 pytest -k concurrent -v               # run concurrency tests only
-python reset_db.py                    # clean DB before a demo
+python reset_db.py --yes              # clean DB before a demo (run AFTER pytest)
 ```
 Postgres runs as a Windows service (always on). The connection string is in `DATABASE_URL`.
