@@ -1,15 +1,6 @@
 # Build log
 
-<!--
-HOW TO USE THIS SKELETON
-- Fill in each section in your own words. Delete all of these hidden comment blocks when you're done.
-- Target: about one page (~400–600 words total). Rough word budgets are next to each heading.
-- Use real numbers and commit hashes. Say who caught each thing:
-  "Claude self-corrected", "the reviewer agent flagged", "a second AI session I used for review suggested", "I noticed".
-- Source material: NOTES.md (live log, reviewer findings) and `git log`.
--->
-
-**Time:** <!-- start → finish, total (e.g. 13:28 → 15:30, about 2h) -->
+**Time:** 13:28 → 16:15 (about 3 hours)
 
 ## What I set out to do
 
@@ -41,7 +32,7 @@ removing `ORDER BY id` from the lock didn't cause a deadlock at all, because Pos
 - **the reviewer's fix for a test leaving behind a 1-cent row that never moved money**: it was right about the bug but wrong about the fix (`rollback()` would've broken the test), so I fixed it a different way. (6414219)
 
 ## Where AI genuinely helped
-- boilerplate (FastAPI app, connection pool, test fixtures) took minutes instead of an hour
+- boilerplate/skeleton (FastAPI app, connection pool, test fixtures) took minutes instead of an hour
 - it ran all the smoke checks and the 80 repeated runs fast — doing that by hand would've eaten the whole time budget
 - the reviewer found two real test gaps: a duplicate waiting on a key that then rolls back, and the 1-cent leftover row
 - Claude noticed `pip freeze >` in PowerShell had saved `requirements.txt` as UTF-16, which would've broken installs for anyone else

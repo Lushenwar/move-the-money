@@ -130,6 +130,6 @@ All in **one transaction** in `service.do_transfer`:
 
 ## Time spent
 
-Started 13:28. *(Ryan: fill in total time when you stop the clock.)*
+Started 13:28. Stopped: 16:15
 
 See `BUILD_LOG.md` for how AI tools were used, where they were wrong, and what I rejected.
