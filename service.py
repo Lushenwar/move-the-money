@@ -54,6 +54,8 @@ def do_transfer(idempotency_key: str, from_id: int, to_id: int, amount_cents: in
         # and taking that before FOR UPDATE lets two transfers deadlock.
         # Must also come BEFORE the debit: DO NOTHING doesn't raise, so a conflict after
         # the debit would commit a second payment.
+        # Being after the lock also makes the id (drawn here) follow the order money moved
+        # per account, which get_history relies on.
         # If another transaction holds the same key uncommitted, Postgres makes this wait
         # for it: on commit we get no row (conflict), on rollback our insert goes ahead.
         row = conn.execute(
@@ -100,7 +102,8 @@ def get_history(account_id: int) -> list[dict]:
         # Newest first by id, not created_at: created_at is now(), the time the transaction
         # *started*, so a transfer that waited on the account lock can carry an older timestamp
         # than one applied before it. ids are drawn inside the INSERT, after FOR UPDATE, so for
-        # one account they follow the order its money actually moved.
+        # one account they follow the order its money actually moved. Only true while
+        # do_transfer locks BEFORE it inserts.
         rows = conn.execute(
             f"SELECT {TRANSFER_COLUMNS} FROM transfers"
             " WHERE from_account_id = %s OR to_account_id = %s"

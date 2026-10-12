@@ -52,16 +52,45 @@ def test_insufficient_funds_changes_nothing(client):
     assert balance(b) == 100
 
 
-@pytest.mark.parametrize("missing", ["from", "to"])
-def test_unknown_account_404_changes_nothing(client, missing):
-    real = new_account(1000)
-    ids = (BIGINT_MAX, real) if missing == "from" else (real, BIGINT_MAX)
+SELF, MISSING = object(), object()  # placeholders: "the sender's own id", "drop the field"
 
-    r = client.post("/transfers", json=transfer_body(*ids, 100))
 
-    assert r.status_code == 404
-    assert r.json() == {"error": "account_not_found"}
-    assert balance(real) == 1000
+@pytest.mark.parametrize("field, value, status", [
+    pytest.param("amount_cents", 0, 422, id="amount=0"),
+    pytest.param("amount_cents", -1, 422, id="amount=-1"),
+    pytest.param("amount_cents", 10.5, 422, id="amount=10.5"),
+    pytest.param("amount_cents", 100.0, 422, id="amount=100.0"),
+    pytest.param("amount_cents", "1000", 422, id="amount='1000'"),
+    pytest.param("amount_cents", True, 422, id="amount=true"),
+    pytest.param("amount_cents", None, 422, id="amount=null"),
+    pytest.param("amount_cents", MISSING, 422, id="amount missing"),
+    pytest.param("amount_cents", BIGINT_MAX + 1, 422, id="amount=2^63"),
+    pytest.param("to_account_id", SELF, 422, id="self-transfer"),
+    pytest.param("from_account_id", 0, 422, id="from=0"),
+    pytest.param("to_account_id", 0, 422, id="to=0"),
+    pytest.param("from_account_id", "1", 422, id="from='1'"),
+    pytest.param("from_account_id", BIGINT_MAX, 404, id="unknown sender"),
+    pytest.param("to_account_id", BIGINT_MAX, 404, id="unknown receiver"),
+    pytest.param("idempotency_key", "", 422, id="key=''"),
+    pytest.param("idempotency_key", MISSING, 422, id="key missing"),
+    pytest.param("idempotency_key", 5, 422, id="key=5"),
+    pytest.param("idempotency_key", "k" * 256, 422, id="key too long"),
+])
+def test_bad_transfer_rejected_and_changes_nothing(client, field, value, status):
+    a, b = new_account(1000), new_account(1000)
+    body = transfer_body(a, b, 100)
+    if value is MISSING:
+        del body[field]
+    else:
+        body[field] = a if value is SELF else value
+
+    r = client.post("/transfers", json=body)
+
+    assert r.status_code == status
+    if status == 404:
+        assert r.json() == {"error": "account_not_found"}
+    assert (balance(a), balance(b)) == (1000, 1000)
+    assert service.get_history(a) == [] and service.get_history(b) == []
 
 
 def test_failed_credit_rolls_back_debit():

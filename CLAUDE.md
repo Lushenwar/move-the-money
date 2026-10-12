@@ -14,9 +14,9 @@
 ╚══════════════════════════════════════════════════════════╝
 ```
 
-Phase: Phase 4 in progress (4B validation tests next)
+Phase: Phase 4 in progress (optional clock_timestamp, then 4C bidirectional test)
 Time budget: 4 hours hard cap (start: 13:28 / stop by: 17:28, 2026-10-12)
-Tests: 36 passing
+Tests: 53 passing
 **Claude updates this section (box, phase line, commit log) after every commit.**
 
 ### Done so far
@@ -33,7 +33,8 @@ Tests: 36 passing
 | `29d4756` | 3A | idempotency: lock → claim key (ON CONFLICT DO NOTHING) → debit → credit; 200 replay / 409 conflict |
 | `4ece30b` | 3B | idempotency tests incl. drained replay, 20 concurrent duplicates, same key on different accounts |
 | `8570434` | 3C | review checkpoint 2: no CRITICAL/MAJOR; added waiting-duplicate-after-rollback test |
-| (this) | 4A | GET /accounts/{id}/transfers, 404 for unknown, ORDER BY id DESC (created_at is txn start; test proves it) |
+| `a614082` | 4A | GET /accounts/{id}/transfers, 404 for unknown, ORDER BY id DESC (created_at is txn start; test proves it) |
+| (this) | 4B | 19-case validation table via HTTP, each asserts balances unchanged + no row; strict-mode smoke check |
 
 ## WHAT THIS FILE IS
 
