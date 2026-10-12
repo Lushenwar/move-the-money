@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import FastAPI, Path
+from fastapi import FastAPI, Path, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, model_validator
 
@@ -45,6 +45,11 @@ def insufficient_funds(request, exc):
     return JSONResponse(status_code=422, content={"error": "insufficient_funds"})
 
 
+@app.exception_handler(service.IdempotencyConflict)
+def idempotency_conflict(request, exc):
+    return JSONResponse(status_code=409, content={"error": "idempotency_key_conflict"})
+
+
 @app.post("/accounts", status_code=201)
 def create_account(body: AccountIn):
     return service.create_account(body.initial_balance_cents)
@@ -56,7 +61,10 @@ def get_account(account_id: AccountId):
 
 
 @app.post("/transfers", status_code=201)
-def create_transfer(body: TransferIn):
-    return service.do_transfer(
+def create_transfer(body: TransferIn, response: Response):
+    transfer, created = service.do_transfer(
         body.idempotency_key, body.from_account_id, body.to_account_id, body.amount_cents
     )
+    if not created:
+        response.status_code = 200  # replay of an already-applied key
+    return transfer
