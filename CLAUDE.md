@@ -107,7 +107,7 @@ The live change means **every line must be something I understand and can modify
 * **PostgreSQL 18**, native Windows service (no Docker). Connection via the `DATABASE_URL` env var
 * **pytest** against the real database
 * Dev machine: Windows on ARM (Snapdragon), **PowerShell**. Give PowerShell commands, not bash
-* **Ask before adding any dependency** beyond `fastapi`, `uvicorn`, `psycopg[binary,pool]`, `pytest`
+* **Ask before adding any dependency** beyond `fastapi`, `uvicorn`, `psycopg[binary,pool]`, `pytest`, `httpx` (test-only, needed by FastAPI's TestClient; approved in Phase 1B)
 
 ### Why this stack (for the README / interview)
 * **Postgres:** locking, atomic transactions, and uniqueness come from a battle-tested database, not hand-written code. SQLite serializes all writes, so a concurrency test can't distinguish safe code from broken code. In-memory state loses data and doesn't survive multiple server instances.
@@ -182,7 +182,9 @@ CREATE TABLE IF NOT EXISTS transfers (
 | 404 | `account_not_found` | Either account doesn't exist |
 | 409 | `idempotency_key_conflict` | Same key reused with a different payload |
 | 422 | `insufficient_funds` | Sender doesn't have enough money |
-| 422 | (FastAPI default) | Validation failure: non-integer, ≤ 0, wrong type, self-transfer |
+| 422 | (FastAPI default) | Validation failure: non-integer, ≤ 0, wrong type, self-transfer, > BIGINT max |
+
+Error bodies are `{"error": "<code>"}`; validation failures keep FastAPI's default `{"detail": [...]}`.
 
 ### Design decisions (document in README)
 * Amounts are **integer cents** end to end. Pydantic fields use `strict=True` so `10.5` and `"1000"` are rejected rather than coerced.
