@@ -14,8 +14,8 @@
 ╚══════════════════════════════════════════════════════════╝
 ```
 
-Phase: Setup complete, build not started
-Time budget: 4 hours hard cap (start: ______ / stop by: ______)
+Phase: Phase 1 in progress
+Time budget: 4 hours hard cap (start: 13:28 / stop by: 17:28, 2026-10-12)
 Update this as each phase finishes.
 
 ## WHAT THIS FILE IS
@@ -336,7 +336,7 @@ Judge by **evidence, not appearance**. Confident, clean-looking code is not proo
 
 `.claude/agents/money-reviewer.md` defines a read-only, skeptical reviewer. It never edits code; it reports findings as concrete failing scenarios with a test that would expose each one.
 
-**Run it only at these three points, and only when I ask** (each run costs credits):
+**Run it whenever I ask.** At minimum, run it at these three points:
 1. After Phase 2 (transfer + concurrency test)
 2. After Phase 3 (idempotency)
 3. Once before submitting
@@ -355,7 +355,7 @@ Do not use multi-agent debate or "council" skills on this project. They cost far
 
 ## COMMIT & HISTORY RULES
 
-* **Claude never runs `git commit` or `git push`.** I review, then commit.
+* **Claude commits and pushes** once a step works and its tests pass, then stops so I can review. No `Co-Authored-By` or other AI attribution lines in commit messages.
 * One logical change per commit, with honest messages (including fix commits like `fix: transfer used read-check-write, switch to conditional update`).
 * Never stage a fake mistake for the history. If something worked first time, it worked first time.
 * Never commit `.venv`, secrets, or `NOTES.md` (my private prep notes).

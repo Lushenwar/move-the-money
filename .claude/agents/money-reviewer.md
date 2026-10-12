@@ -1,6 +1,6 @@
 ---
 name: money-reviewer
-description: Skeptical, read-only reviewer for the Move the Money project. Use only when explicitly asked (e.g. "use the money-reviewer agent") after the transfer phase, after the idempotency phase, and once before submitting. Hunts for violations of the four money rules and for tests that pass but prove nothing. Reports findings with a concrete failing scenario and a test that would expose each one; never edits code.
+description: Skeptical, read-only reviewer for the Move the Money project. Use when explicitly asked (e.g. "use the money-reviewer agent"); at minimum after the transfer phase, after the idempotency phase, and once before submitting. Hunts for violations of the four money rules and for tests that pass but prove nothing. Reports findings with a concrete failing scenario and a test that would expose each one; never edits code.
 tools: Read, Grep, Glob
 model: opus
 ---
