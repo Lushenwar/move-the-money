@@ -4,19 +4,35 @@
 
 ```
 ╔══════════════════════════════════════════════════════════╗
-║  BUILD PROGRESS                                 0/5 DONE ║
-║  ░░░░░░░░░░░░░░░░░░░░░░░░  NOT STARTED                   ║
-║  Phase 1: Skeleton, Schema & Accounts       [ ]          ║
-║  Phase 2: Transfers & Concurrency Proof     [ ]          ║
-║  Phase 3: Idempotency                       [ ]          ║
+║  BUILD PROGRESS                               3/5 DONE   ║
+║  ██████████████░░░░░░░░░░  60%                           ║
+║  Phase 1: Skeleton, Schema & Accounts       [x]          ║
+║  Phase 2: Transfers & Concurrency Proof     [x]          ║
+║  Phase 3: Idempotency                       [x]          ║
 ║  Phase 4: History, Validation & Hardening   [ ]          ║
 ║  Phase 5: README, Build Log & Demo Prep     [ ]          ║
 ╚══════════════════════════════════════════════════════════╝
 ```
 
-Phase: Phase 1 in progress
+Phase: Phase 4 next (4A transaction history)
 Time budget: 4 hours hard cap (start: 13:28 / stop by: 17:28, 2026-10-12)
-Update this as each phase finishes.
+Tests: 31 passing
+**Claude updates this section (box, phase line, commit log) after every commit.**
+
+### Done so far
+| Commit | Step | What |
+| --- | --- | --- |
+| `d745abd` | setup | requirements, gitignore, CLAUDE.md, reviewer agent |
+| `7d8a950` | setup | allow more reviewer runs, start clock, Claude commits |
+| `87b748c` | 1A | schema.sql, db.py (pool), app.py (schema applied at import, no async lifespan) |
+| `8bd1958` | 1A fix | close connection pool at exit |
+| `aa1249f` | 1B | POST/GET accounts, strict validation, 0..BIGINT max, `{"error": ...}` bodies, httpx |
+| `d2d7b70` | 2A | do_transfer: FOR UPDATE ORDER BY id, conditional debit, one transaction; rule-2 rollback test |
+| `8c08029` | 2B/2C | 50-thread concurrency test; smoke check: no-FOR-UPDATE passed (proves nothing), read-check-write failed 18-19/10 |
+| — | 2D | review checkpoint 1: cold-pool claim measured over 80 runs, half right, no change |
+| `29d4756` | 3A | idempotency: lock → claim key (ON CONFLICT DO NOTHING) → debit → credit; 200 replay / 409 conflict |
+| `4ece30b` | 3B | idempotency tests incl. drained replay, 20 concurrent duplicates, same key on different accounts |
+| (this) | 3C | review checkpoint 2: no CRITICAL/MAJOR; added waiting-duplicate-after-rollback test |
 
 ## WHAT THIS FILE IS
 
@@ -358,6 +374,7 @@ Do not use multi-agent debate or "council" skills on this project. They cost far
 ## COMMIT & HISTORY RULES
 
 * **Claude commits and pushes** once a step works and its tests pass, then stops so I can review. No `Co-Authored-By` or other AI attribution lines in commit messages.
+* **After every commit, Claude updates CURRENT STATUS** (progress box, phase line, test count, "Done so far" table) and commits that with the next change.
 * One logical change per commit, with honest messages (including fix commits like `fix: transfer used read-check-write, switch to conditional update`).
 * Never stage a fake mistake for the history. If something worked first time, it worked first time.
 * Never commit `.venv`, secrets, or `NOTES.md` (my private prep notes).

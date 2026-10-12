@@ -1,8 +1,10 @@
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from uuid import uuid4
 
 import service
+from db import pool
 from conftest import balance, new_account
 
 
@@ -117,3 +119,28 @@ def test_concurrent_same_key_different_accounts():
     moved = [(balance(a), balance(b)) for a, b in pairs]
     assert moved.count((900, 100)) == 1
     assert moved.count((1000, 0)) == 19
+
+
+def test_waiting_duplicate_applies_if_first_holder_rolls_back():
+    # A failed attempt must not keep the key: a request waiting on it goes ahead once it rolls back.
+    # A raw connection plays the failed first attempt so the ordering is deterministic.
+    a2, b2 = new_account(1000), new_account(0)
+    held_a, held_b = new_account(0), new_account(0)
+    key = str(uuid4())
+
+    with pool.connection() as holder:
+        holder.execute(
+            "INSERT INTO transfers (idempotency_key, from_account_id, to_account_id, amount_cents)"
+            " VALUES (%s, %s, %s, 100)",
+            (key, held_a, held_b),
+        )  # uncommitted: the key is held
+        with ThreadPoolExecutor(max_workers=1) as ex:
+            waiting = ex.submit(service.do_transfer, key, a2, b2, 100)
+            time.sleep(0.5)
+            assert not waiting.done()  # blocked on the uncommitted key
+            holder.rollback()  # first attempt fails
+            transfer, created = waiting.result(timeout=10)
+
+    assert created
+    assert (transfer["from_account_id"], transfer["to_account_id"]) == (a2, b2)
+    assert (balance(a2), balance(b2)) == (900, 100)
