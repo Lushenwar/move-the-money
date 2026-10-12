@@ -18,7 +18,7 @@ Because the safe patterns were written down up front, the core transfer logic wa
 ## Where it was confidently wrong
 
 ### 1. a smoke check that proved nothing
-To make sure the rule-1 concurrency test could actually fail, I swapped in broken versions of the transfer code. the obvious one (just removing `FOR UPDATE`) still passed 3/3 — the conditional `UPDATE` and the `CHECK` constraint were still protecting the balance, so the test never saw a problem. a second AI chat predicted this, and Claude Code ran both versions. the only version that actually broke was reading the balance into Python and writing back a computed number: 18–19 transfers went through instead of 10, so money got created out of nothing. that's why the test checks the exact success count and the total money, not just "nobody went negative". (8c08029)
+To make sure the rule-1 concurrency test could actually fail, I swapped in broken versions of the transfer code. the obvious one (just removing `FOR UPDATE`) still passed 3/3; the conditional `UPDATE` and the `CHECK` constraint were still protecting the balance, so the test never saw a problem. a second AI chat predicted this, and Claude Code ran both versions. the only version that actually broke was reading the balance into Python and writing back a computed number: 18–19 transfers went through instead of 10, so money got created out of nothing. that's why the test checks the exact success count and the total money, not just "nobody went negative". (8c08029)
 
 ### 2. idempotency key claimed in the wrong place
 the original plan claimed the key last, after the debit. it never double-charged anyone, but if you retried a transfer that had emptied the account, you got "insufficient funds" (422) for a payment that actually went through. a separate AI review caught it. I wrote the test first and it failed with 422 before the fix. fix was: lock → claim key → move money. then a smoke check showed why the order matters so much: with `ON CONFLICT DO NOTHING` after the debit, money moved twice (400 == 700). (29d4756, 4ece30b)
@@ -33,7 +33,7 @@ removing `ORDER BY id` from the lock didn't cause a deadlock at all, because Pos
 
 ## Where AI genuinely helped
 - boilerplate/skeleton (FastAPI app, connection pool, test fixtures) took minutes instead of an hour
-- it ran all the smoke checks and the 80 repeated runs fast — doing that by hand would've eaten the whole time budget
+- it ran all the smoke checks and the 80 repeated runs fast; doing that by hand would've eaten the whole time budget
 - the reviewer found two real test gaps: a duplicate waiting on a key that then rolls back, and the 1-cent leftover row
 - Claude noticed `pip freeze >` in PowerShell had saved `requirements.txt` as UTF-16, which would've broken installs for anyone else
 
