@@ -37,7 +37,8 @@ Tests: 54 passing
 | `bb32765` | 4B | 19-case validation table via HTTP, each asserts balances unchanged + no row; strict-mode smoke check |
 | `19f6070` | 4B+ | transfers.created_at DEFAULT clock_timestamp() (write time, not txn start) |
 | `074ebfa` | 4C | bidirectional test; smoke: no ORDER BY passed (PK index order), sender-then-receiver deadlocked 3/3 |
-| (this) | 4D | reset_db.py: --yes guard, prints db/host (no password), TRUNCATE ... RESTART IDENTITY |
+| `906594e` | 4D | reset_db.py: --yes guard, prints db/host (no password), TRUNCATE ... RESTART IDENTITY |
+| (this) | 5 | review checkpoint 3: no CRITICAL/MAJOR; fixed test leaving a moneyless transfer row + stale comment |
 
 ## WHAT THIS FILE IS
 

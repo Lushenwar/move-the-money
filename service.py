@@ -99,11 +99,10 @@ def get_history(account_id: int) -> list[dict]:
     with pool.connection() as conn:
         if conn.execute("SELECT 1 FROM accounts WHERE id = %s", (account_id,)).fetchone() is None:
             raise AccountNotFound(account_id)
-        # Newest first by id, not created_at: created_at is now(), the time the transaction
-        # *started*, so a transfer that waited on the account lock can carry an older timestamp
-        # than one applied before it. ids are drawn inside the INSERT, after FOR UPDATE, so for
-        # one account they follow the order its money actually moved. Only true while
-        # do_transfer locks BEFORE it inserts.
+        # Newest first by id: ids are drawn inside the INSERT, after FOR UPDATE, so for one
+        # account they follow the order its money actually moved. Only true while do_transfer
+        # locks BEFORE it inserts. created_at (clock_timestamp(), the write time) agrees but
+        # can tie; id can't. (With now(), the transaction start time, it could disagree.)
         rows = conn.execute(
             f"SELECT {TRANSFER_COLUMNS} FROM transfers"
             " WHERE from_account_id = %s OR to_account_id = %s"

@@ -153,9 +153,14 @@ def test_history_orders_by_when_applied_not_when_transaction_started():
         fast, _ = service.do_transfer(str(uuid4()), a, b, 100)  # starts later, commits first
         slow_id, slow_created = slow.execute(
             "INSERT INTO transfers (idempotency_key, from_account_id, to_account_id, amount_cents)"
-            " VALUES (%s, %s, %s, 1) RETURNING id, created_at",  # row only: this test is about order
+            " VALUES (%s, %s, %s, 1) RETURNING id, created_at",
             (str(uuid4()), a, b),
         ).fetchone()
+        # Move the cent too, so the committed row is a real transfer that history can explain.
+        slow.execute("UPDATE accounts SET balance_cents = balance_cents - 1 WHERE id = %s", (a,))
+        slow.execute("UPDATE accounts SET balance_cents = balance_cents + 1 WHERE id = %s", (b,))
 
-    assert [t["id"] for t in service.get_history(a)] == [slow_id, fast["id"]]
+    history = service.get_history(a)
+    assert [t["id"] for t in history] == [slow_id, fast["id"]]
     assert slow_created >= fast["created_at"]  # with now() this would be < (transaction start)
+    assert balance(a) == 1000 - sum(t["amount_cents"] for t in history)  # history explains balance
