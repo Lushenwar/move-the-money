@@ -1,6 +1,6 @@
 import pytest
 
-BIGINT_MAX = 2**63 - 1
+from app import BIGINT_MAX
 
 
 def test_create_and_get_account(client):

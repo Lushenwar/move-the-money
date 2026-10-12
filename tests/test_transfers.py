@@ -5,19 +5,9 @@ import psycopg
 import pytest
 
 import service
-from conftest import balance, new_account
+from app import BIGINT_MAX
+from conftest import balance, new_account, transfer_body
 from db import pool
-
-BIGINT_MAX = 2**63 - 1
-
-
-def transfer_body(from_id, to_id, amount):
-    return {
-        "idempotency_key": str(uuid4()),
-        "from_account_id": from_id,
-        "to_account_id": to_id,
-        "amount_cents": amount,
-    }
 
 
 def test_transfer_moves_money(client):

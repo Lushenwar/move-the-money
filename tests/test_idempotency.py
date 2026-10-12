@@ -4,17 +4,8 @@ from concurrent.futures import ThreadPoolExecutor
 from uuid import uuid4
 
 import service
+from conftest import balance, new_account, transfer_body
 from db import pool
-from conftest import balance, new_account
-
-
-def transfer_body(from_id, to_id, amount, key=None):
-    return {
-        "idempotency_key": key or str(uuid4()),
-        "from_account_id": from_id,
-        "to_account_id": to_id,
-        "amount_cents": amount,
-    }
 
 
 def test_replay_returns_original_and_moves_money_once(client):
